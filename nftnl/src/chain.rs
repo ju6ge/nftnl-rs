@@ -5,6 +5,7 @@ use std::{
     fmt,
     os::raw::c_char,
 };
+use std::sync::Arc;
 
 pub type Priority = i32;
 
@@ -67,21 +68,21 @@ impl ChainType {
 /// [`Table`]: struct.Table.html
 /// [`Rule`]: struct.Rule.html
 /// [`set_hook`]: #method.set_hook
-pub struct Chain<'a> {
+pub struct Chain {
     chain: *mut sys::nftnl_chain,
-    table: &'a Table,
+    table: Arc<Table>,
 }
 
 // Safety: It should be safe to pass this around and *read* from it
 // from multiple threads
-unsafe impl<'a> Send for Chain<'a> {}
-unsafe impl<'a> Sync for Chain<'a> {}
+unsafe impl Send for Chain {}
+unsafe impl Sync for Chain {}
 
-impl<'a> Chain<'a> {
+impl Chain {
     /// Creates a new chain instance inside the given [`Table`] and with the given name.
     ///
     /// [`Table`]: struct.Table.html
-    pub fn new<T: AsRef<CStr>>(name: &T, table: &'a Table) -> Chain<'a> {
+    pub fn new<T: AsRef<CStr>>(name: &T, table: Arc<Table>) -> Chain {
         unsafe {
             let chain = try_alloc!(sys::nftnl_chain_alloc());
             sys::nftnl_chain_set_u32(
@@ -145,11 +146,11 @@ impl<'a> Chain<'a> {
     ///
     /// [`Table`]: struct.Table.html
     pub fn get_table(&self) -> &Table {
-        self.table
+        self.table.as_ref()
     }
 }
 
-impl<'a> fmt::Debug for Chain<'a> {
+impl fmt::Debug for Chain {
     /// Return a string representation of the chain.
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut buffer: [u8; 4096] = [0; 4096];
@@ -167,7 +168,7 @@ impl<'a> fmt::Debug for Chain<'a> {
     }
 }
 
-unsafe impl<'a> crate::NlMsg for Chain<'a> {
+unsafe impl crate::NlMsg for Chain {
     unsafe fn write(&self, buf: *mut c_void, seq: u32, msg_type: MsgType) {
         let raw_msg_type = match msg_type {
             MsgType::Add => libc::NFT_MSG_NEWCHAIN,
@@ -188,7 +189,7 @@ unsafe impl<'a> crate::NlMsg for Chain<'a> {
     }
 }
 
-impl<'a> Drop for Chain<'a> {
+impl Drop for Chain {
     fn drop(&mut self) {
         unsafe { sys::nftnl_chain_free(self.chain) };
     }
