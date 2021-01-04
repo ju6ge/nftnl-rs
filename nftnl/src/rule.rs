@@ -56,6 +56,12 @@ impl Rule {
         }
     }
 
+    pub fn get_handle(&mut self) -> u64 {
+        unsafe {
+            sys::nftnl_rule_get_u64(self.rule, sys::NFTNL_RULE_HANDLE as u16)
+        }
+    }
+
     /// Adds an expression to this rule. Expressions are evaluated from first to last added.
     /// As soon as an expression does not match the packet it's being evaluated for, evaluation
     /// stops and the packet is evaluated against the next rule in the chain.
